@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SimpleShop</title>
+<style>
+  :root{--bg:#fbfaf7;--fg:#1f2a24;--muted:#5b6b62;--accent:#2f5d4f;--border:#d8ddd7;}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#121815;--fg:#e9ede9;--muted:#9aa79f;--accent:#7fc7a8;--border:#2a332e;}}
+  :root[data-theme="dark"]{--bg:#121815;--fg:#e9ede9;--muted:#9aa79f;--accent:#7fc7a8;--border:#2a332e;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:"Segoe UI",system-ui,sans-serif;
+       padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
+  header{display:flex;gap:18px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;
+         position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:10;}
+  header a{color:var(--fg);text-decoration:none;font-size:15px;}
+  header a:hover{color:var(--accent);}
+  header .brand{font-size:18px;font-weight:700;letter-spacing:.2px;}
+  main{padding:20px;max-width:640px;margin:0 auto;}
+  h1{font-size:26px;margin:0 0 14px 0;}
+  footer{border-top:1px solid var(--border);padding:18px 20px;margin-top:40px;color:var(--muted);font-size:13.5px;line-height:1.7;}
+  .product{border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:12px;}
+  .product h3{margin:0 0 6px 0;font-size:17px;}
+  .product .meta{color:var(--muted);font-size:13.5px;margin-bottom:8px;}
+  label{display:block;font-size:13.5px;color:var(--muted);margin-bottom:4px;}
+  input{display:block;width:100%;max-width:320px;padding:9px 10px;margin:0 0 14px 0;
+        border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--fg);font-size:15px;}
+  button{padding:9px 18px;border:none;border-radius:5px;background:var(--accent);color:#0b120e;
+         font-weight:600;cursor:pointer;font-size:14.5px;}
+  button:hover{opacity:.9;}
+  .error{color:#c0392b;}
+  .success{color:var(--accent);font-weight:600;}
+  table{border-collapse:collapse;width:100%;margin-top:10px;}
+  td,th{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:14.5px;}
+  .total{font-size:19px;margin-top:14px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const PRODUCTS=[
+ {id:'p1',name:'Slušalice X1',category:'Elektronika',price:2500},
+ {id:'p2',name:'Zvučnik Y2',category:'Elektronika',price:4000},
+ {id:'p3',name:'Majica Z1',category:'Odeća',price:1500},
+ {id:'p4',name:'Jakna W2',category:'Odeća',price:6000},
+ {id:'p5',name:'Lopta A1',category:'Sport',price:2000},
+ {id:'p6',name:'Reket B2',category:'Sport',price:3500}
+];
+const COMPANY={name:'SimpleShop DOO',address:'Test ulica 1, 11000 Beograd',
+  email:'info@simpleshop.test',phone:'+381 11 000 0000',pib:'123456789',maticniBroj:'987654321'};
+
+function getUsers(){return JSON.parse(localStorage.getItem('ss_users')||'[]');}
+function saveUsers(u){localStorage.setItem('ss_users',JSON.stringify(u));}
+function getLoggedIn(){return localStorage.getItem('ss_logged_in');}
+function setLoggedIn(e){e?localStorage.setItem('ss_logged_in',e):localStorage.removeItem('ss_logged_in');}
+function getCart(){return JSON.parse(localStorage.getItem('ss_cart')||'[]');}
+function saveCart(c){localStorage.setItem('ss_cart',JSON.stringify(c));}
+function addToCart(id){const c=getCart();c.push(id);saveCart(c);render();}
+function logout(){setLoggedIn(null);location.hash='#/';}
+
+function header(){
+  const email=getLoggedIn();
+  const acc = email
+    ? `<a href="#/account" id="nav-account">${email}</a><a href="#" id="nav-logout" onclick="logout();return false;">Odjava</a>`
+    : `<a href="#/login" id="nav-login">Prijava</a><a href="#/register" id="nav-register">Registracija</a>`;
+  return `<header>
+    <a href="#/" id="nav-home" class="brand">SimpleShop</a>
+    <a href="#/category/Elektronika" id="nav-cat-elektronika">Elektronika</a>
+    <a href="#/category/Ode%C4%87a" id="nav-cat-odeca">Odeća</a>
+    <a href="#/category/Sport" id="nav-cat-sport">Sport</a>
+    <a href="#/cart" id="nav-cart">Korpa (<span id="cart-count">${getCart().length}</span>)</a>
+    ${acc}
+  </header>`;
+}
+
+function footerHtml(){
+  return `<footer>
+    <div id="company-name">${COMPANY.name}</div>
+    <div id="company-address">${COMPANY.address}</div>
+    <div id="company-email">${COMPANY.email}</div>
+    <div id="company-phone">${COMPANY.phone}</div>
+    <div id="company-pib">PIB: ${COMPANY.pib}</div>
+    <div id="company-maticni-broj">Matični broj: ${COMPANY.maticniBroj}</div>
+  </footer>`;
+}
+
+function productCard(p){
+  return `<div class="product" id="product-${p.id}">
+    <h3>${p.name}</h3>
+    <div class="meta">Kategorija: ${p.category} &middot; Cena: <span class="price">${p.price}</span> RSD</div>
+    <button id="add-to-cart-${p.id}" onclick="addToCart('${p.id}')">Dodaj u korpu</button>
+  </div>`;
+}
+
+function pageHome(){
+  return `<main><h1>Svi proizvodi</h1>${PRODUCTS.map(productCard).join('')}</main>`;
+}
+function pageCategory(cat){
+  const name=decodeURIComponent(cat);
+  const items=PRODUCTS.filter(p=>p.category===name);
+  return `<main><h1>${name}</h1>${items.map(productCard).join('')}</main>`;
+}
+
+function pageRegister(){
+  return `<main><h1>Registracija</h1>
+    <form id="register-form" onsubmit="return doRegister(event)">
+      <label>Ime</label><input id="reg-first-name" required>
+      <label>Prezime</label><input id="reg-last-name" required>
+      <label>Email</label><input id="reg-email" type="email" required>
+      <label>Lozinka</label><input id="reg-password" type="password" required>
+      <label>Telefon</label><input id="reg-phone" required>
+      <label>Grad</label><input id="reg-city" required>
+      <button type="submit" id="reg-submit">Registruj se</button>
+    </form>
+    <div id="reg-message"></div>
+  </main>`;
+}
+function doRegister(ev){
+  ev.preventDefault();
+  const users=getUsers();
+  const email=document.getElementById('reg-email').value.trim();
+  if(users.some(u=>u.email===email)){
+    document.getElementById('reg-message').innerHTML='<p class="error" id="reg-error">Email već postoji.</p>';
+    return false;
+  }
+  users.push({
+    firstName:document.getElementById('reg-first-name').value,
+    lastName:document.getElementById('reg-last-name').value,
+    email:email,
+    password:document.getElementById('reg-password').value,
+    phone:document.getElementById('reg-phone').value,
+    city:document.getElementById('reg-city').value
+  });
+  saveUsers(users);
+  document.getElementById('reg-message').innerHTML='<p class="success" id="reg-success">Registracija uspešna. Možete se prijaviti.</p>';
+  return false;
+}
+
+function pageLogin(){
+  return `<main><h1>Prijava</h1>
+    <form id="login-form" onsubmit="return doLogin(event)">
+      <label>Email</label><input id="login-email" type="email" required>
+      <label>Lozinka</label><input id="login-password" type="password" required>
+      <button type="submit" id="login-submit">Prijavi se</button>
+    </form>
+    <div id="login-message"></div>
+  </main>`;
+}
+function doLogin(ev){
+  ev.preventDefault();
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-password').value;
+  const user=getUsers().find(u=>u.email===email && u.password===pass);
+  if(!user){
+    document.getElementById('login-message').innerHTML='<p class="error" id="login-error">Pogrešan email ili lozinka.</p>';
+    return false;
+  }
+  setLoggedIn(email);
+  location.hash='#/account';
+  return false;
+}
+
+function pageAccount(){
+  const email=getLoggedIn();
+  if(!email){location.hash='#/login';return '<main><p>Preusmeravanje na prijavu...</p></main>';}
+  const user=getUsers().find(u=>u.email===email);
+  if(!user) return '<main><p class="error">Korisnik nije pronađen.</p></main>';
+  return `<main><h1>Moj nalog</h1>
+    <p>Ime: <span id="profile-first-name">${user.firstName}</span></p>
+    <p>Prezime: <span id="profile-last-name">${user.lastName}</span></p>
+    <p>Email: <span id="profile-email">${user.email}</span></p>
+    <p>Telefon: <span id="profile-phone">${user.phone}</span></p>
+    <p>Grad: <span id="profile-city">${user.city}</span></p>
+  </main>`;
+}
+
+function pageCart(){
+  const cart=getCart();
+  const items=cart.map(id=>PRODUCTS.find(p=>p.id===id)).filter(Boolean);
+  const total=items.reduce((s,p)=>s+p.price,0);
+  const rows=items.map(p=>`<tr><td>${p.name}</td><td>${p.category}</td><td>${p.price} RSD</td></tr>`).join('');
+  return `<main><h1>Korpa</h1>
+    <table id="cart-table"><thead><tr><th>Proizvod</th><th>Kategorija</th><th>Cena</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="3">Korpa je prazna.</td></tr>'}</tbody></table>
+    <p class="total">Ukupno: <span id="cart-total">${total}</span> RSD</p>
+  </main>`;
+}
+
+function body(hash){
+  if(hash==='#/'||hash==='') return pageHome();
+  if(hash==='#/register') return pageRegister();
+  if(hash==='#/login') return pageLogin();
+  if(hash==='#/account') return pageAccount();
+  if(hash==='#/cart') return pageCart();
+  if(hash.startsWith('#/category/')) return pageCategory(hash.replace('#/category/',''));
+  return '<main><p>Stranica nije pronađena.</p></main>';
+}
+
+function render(){
+  document.getElementById('app').innerHTML = header() + body(location.hash) + footerHtml();
+}
+window.addEventListener('hashchange', render);
+window.addEventListener('DOMContentLoaded', render);
+render();
+</script>
+</body>
+</html>
